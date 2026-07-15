@@ -1,4 +1,5 @@
 using Serilog;
+using CRM.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,7 +27,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseMiddleware<CRM.API.Middleware.GlobalExceptionMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.UseAuthorization();
 
