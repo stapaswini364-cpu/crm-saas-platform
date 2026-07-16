@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using CRM.API.Services;
 
 namespace CRM.API.Middleware;
 
@@ -11,7 +11,9 @@ public class TenantResolutionMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(
+        HttpContext context,
+        ITenantContextAccessor tenantContextAccessor)
     {
         string? tenantId = null;
 
@@ -27,10 +29,10 @@ public class TenantResolutionMiddleware
             tenantId = context.User.FindFirst("tenant_id")?.Value;
         }
 
-        // Store Tenant Id
         if (!string.IsNullOrWhiteSpace(tenantId))
         {
             context.Items["TenantId"] = tenantId;
+            tenantContextAccessor.TenantId = tenantId;
         }
 
         await _next(context);
