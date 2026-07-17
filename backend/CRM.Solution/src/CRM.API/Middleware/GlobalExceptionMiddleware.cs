@@ -28,7 +28,8 @@ public class GlobalExceptionMiddleware
 
             await context.Response.WriteAsJsonAsync(new
             {
-                message = "An unexpected error occurred."
+                message = ex.Message,
+                inner = ex.InnerException?.Message
             });
         }
     }

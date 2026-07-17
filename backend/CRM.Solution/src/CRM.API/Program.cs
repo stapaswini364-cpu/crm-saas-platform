@@ -1,6 +1,10 @@
 using Serilog;
 using CRM.API.Middleware;
 using CRM.API.Services;
+using CRM.Application.Interfaces;
+using CRM.Application.Services;
+using CRM.Infrastructure.Security;
+using CRM.Infrastructure.Services;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -9,7 +13,9 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// =====================
 // Configure Serilog
+// =====================
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .WriteTo.Console()
@@ -17,12 +23,30 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-
-// Add Controllers
+// =====================
+// Controllers
+// =====================
 builder.Services.AddControllers();
 
+// =====================
+// Database
+// =====================
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(
+        "Host=localhost;Port=5432;Database=faatpro_db;Username=admin;Password=password"
+    ));
 
+// =====================
+// Dependency Injection
+// =====================
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+builder.Services.AddScoped<RefreshTokenService>();
+builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
+
+// =====================
 // JWT Authentication
+// =====================
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -41,50 +65,36 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
 
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(
-                builder.Configuration["Jwt:Key"]!
-            ))
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+        )
     };
 });
 
-
-// Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(
-        "Host=localhost;Port=5432;Database=faatpro_db;Username=admin;Password=password"
-    ));
-
-
-// Services
-builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
-
-
+// =====================
 // OpenAPI
+// =====================
 builder.Services.AddOpenApi();
-
 
 var app = builder.Build();
 
-
-// HTTP Pipeline
+// =====================
+// Development
+// =====================
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-
+// =====================
+// HTTP Pipeline
+// =====================
 app.UseHttpsRedirection();
 
-
-// Middleware
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 
-
-// JWT Middleware
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 app.MapControllers();
 

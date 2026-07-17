@@ -5,4 +5,7 @@
     <Project Path="src/CRM.Domain/CRM.Domain.csproj" />
     <Project Path="src/CRM.Infrastructure/CRM.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CRM.Tests/CRM.Tests.csproj" />
+  </Folder>
 </Solution>
