@@ -1,7 +1,10 @@
 using Serilog;
 using CRM.API.Middleware;
 using CRM.API.Services;
+<<<<<<< HEAD
 using CRM.Application.Common.Security;
+=======
+>>>>>>> origin/main
 using CRM.Application.Interfaces;
 using CRM.Application.Services;
 using CRM.Infrastructure.Security;
@@ -73,6 +76,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 // =====================
+<<<<<<< HEAD
 // Authorization (RBAC + Permissions)
 // =====================
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
@@ -109,6 +113,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 // =====================
+=======
+>>>>>>> origin/main
 // OpenAPI
 // =====================
 builder.Services.AddOpenApi();
