@@ -1,10 +1,7 @@
 using Serilog;
 using CRM.API.Middleware;
 using CRM.API.Services;
-<<<<<<< HEAD
 using CRM.Application.Common.Security;
-=======
->>>>>>> origin/main
 using CRM.Application.Interfaces;
 using CRM.Application.Services;
 using CRM.Infrastructure.Security;
@@ -16,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using CRM.API.Authorization;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // =====================
@@ -28,10 +26,12 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+
 // =====================
 // Controllers
 // =====================
 builder.Services.AddControllers();
+
 
 // =====================
 // Database
@@ -41,6 +41,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         "Host=localhost;Port=5432;Database=faatpro_db;Username=admin;Password=password"
     ));
 
+
 // =====================
 // Dependency Injection
 // =====================
@@ -48,6 +49,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<RefreshTokenService>();
 builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
+
 
 // =====================
 // JWT Authentication
@@ -70,15 +72,18 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
 
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            Encoding.UTF8.GetBytes(
+                builder.Configuration["Jwt:Key"]!
+            )
         )
     };
 });
 
+
 // =====================
-<<<<<<< HEAD
 // Authorization (RBAC + Permissions)
 // =====================
+
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
 
 builder.Services.AddAuthorization(options =>
@@ -112,14 +117,15 @@ builder.Services.AddAuthorization(options =>
             new PermissionRequirement(Permissions.ReportsView)));
 });
 
+
 // =====================
-=======
->>>>>>> origin/main
 // OpenAPI
 // =====================
 builder.Services.AddOpenApi();
 
+
 var app = builder.Build();
+
 
 // =====================
 // Development
@@ -129,14 +135,24 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+
 // =====================
 // HTTP Pipeline
 // =====================
 app.UseHttpsRedirection();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
 app.UseMiddleware<TenantResolutionMiddleware>();
 
+app.UseAuthentication();
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+
+app.Run();
 app.UseAuthentication();
 app.UseAuthorization();
 
