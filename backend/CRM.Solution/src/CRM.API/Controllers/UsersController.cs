@@ -1,80 +1,165 @@
+using CRM.Application.Common.Security;
 using CRM.Application.Interfaces;
+
 using CRM.Domain.Entities;
+
 using CRM.Infrastructure.Data;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CRM.API.Authorization;
-using CRM.Application.Common.Security;
-using Microsoft.AspNetCore.Authorization;
+
 
 namespace CRM.API.Controllers;
 
+
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class UsersController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+
+    private readonly ApplicationDbContext _db;
+
     private readonly IPasswordHasher _passwordHasher;
 
+
+
     public UsersController(
-        ApplicationDbContext context,
+        ApplicationDbContext db,
         IPasswordHasher passwordHasher)
     {
-        _context = context;
+        _db = db;
+
         _passwordHasher = passwordHasher;
     }
 
-    [RequireRole(Roles.SuperAdmin, Roles.Admin)]
-    [Authorize(Policy = "Users.Create")]
-    [HttpPost]
-    public async Task<IActionResult> Create(UserRequest request)
-    {
-        var userExists = await _context.Users
-            .AnyAsync(x => x.Email == request.Email);
 
-        if (userExists)
+
+    // =========================
+    // GET ALL USERS
+    // =========================
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> GetUsers()
+    {
+        var users =
+            await _db.Users
+            .ToListAsync();
+
+
+        return Ok(users);
+    }
+
+
+
+    // =========================
+    // CREATE USER
+    // Requires Users.Create Permission
+    // =========================
+
+    [HttpPost]
+    [Authorize(Policy = "Users.Create")]
+    public async Task<IActionResult> CreateUser(
+        UserRequest request)
+    {
+
+
+        var existingUser =
+            await _db.Users
+            .FirstOrDefaultAsync(
+                x => x.Email == request.Email);
+
+
+
+        if(existingUser != null)
         {
-            return BadRequest(new
-            {
-                message = "User already exists"
-            });
+            return BadRequest(
+                "Email already exists");
         }
+
+
 
         var user = new User
         {
+
             Id = Guid.NewGuid(),
-            OrganizationId = request.OrganizationId,
-            Name = request.Name,
-            Email = request.Email,
-            PasswordHash = _passwordHasher.Hash(request.Password),
-            Role = request.Role,
-            CreatedAt = DateTime.UtcNow
+
+
+            OrganizationId =
+                request.OrganizationId,
+
+
+            Name =
+                request.Name,
+
+
+            Email =
+                request.Email,
+
+
+            PasswordHash =
+                _passwordHasher.Hash(
+                    request.Password),
+
+
+            Role =
+                request.Role ?? "User"
+
         };
 
-        _context.Users.Add(user);
 
-        await _context.SaveChangesAsync();
+
+        _db.Users.Add(user);
+
+
+        await _db.SaveChangesAsync();
+
+
 
         return Ok(new
         {
             message = "User created successfully",
+
             user.Id,
+
+            user.Name,
+
             user.Email,
+
             user.Role
         });
+
     }
+
+
 }
+
+
+
+// =========================
+// Request DTO
+// =========================
 
 public class UserRequest
 {
+
     public Guid OrganizationId { get; set; }
 
-    public string Name { get; set; } = string.Empty;
 
-    public string Email { get; set; } = string.Empty;
 
-    public string Password { get; set; } = string.Empty;
+    public string Name { get; set; } = "";
 
-    public string Role { get; set; } = Roles.User;
+
+
+    public string Email { get; set; } = "";
+
+
+
+    public string Password { get; set; } = "";
+
+
+
+    public string? Role { get; set; }
+
 }

@@ -1,24 +1,32 @@
 using Serilog;
+
 using CRM.API.Middleware;
-using CRM.API.Services;
-using CRM.Application.Common.Security;
+using CRM.API.Authorization;
+
 using CRM.Application.Interfaces;
-using CRM.Application.Services;
+using CRM.Application.Common.Security;
+
+using CRM.Infrastructure.Data;
 using CRM.Infrastructure.Security;
 using CRM.Infrastructure.Services;
-using CRM.Infrastructure.Data;
+
 using Microsoft.EntityFrameworkCore;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+
 using Microsoft.IdentityModel.Tokens;
+
 using System.Text;
-using CRM.API.Authorization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 // =====================
-// Configure Serilog
+// Serilog
 // =====================
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .WriteTo.Console()
@@ -28,134 +36,166 @@ builder.Host.UseSerilog();
 
 
 // =====================
-// Controllers
+// Services
 // =====================
+
 builder.Services.AddControllers();
+
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen();
+
+
+// Health Check
+
+builder.Services.AddHealthChecks();
 
 
 // =====================
 // Database
 // =====================
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
     options.UseNpgsql(
-        "Host=localhost;Port=5432;Database=faatpro_db;Username=admin;Password=password"
-    ));
+        builder.Configuration
+        .GetConnectionString("DefaultConnection"));
+});
 
 
 // =====================
 // Dependency Injection
 // =====================
-builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+
+builder.Services.AddScoped<
+    IJwtTokenService,
+    JwtTokenService>();
+
+
+builder.Services.AddScoped<
+    IPasswordHasher,
+    BCryptPasswordHasher>();
+
+
 builder.Services.AddScoped<RefreshTokenService>();
-builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
+
+
+builder.Services.AddScoped<
+    ITenantContextAccessor,
+    TenantContextAccessor>();
+
+
 
 
 // =====================
-// JWT Authentication
+// Authentication
 // =====================
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+
+builder.Services
+    .AddAuthentication(
+        JwtBearerDefaults.AuthenticationScheme)
+
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        options.TokenValidationParameters =
+            new TokenValidationParameters
+            {
+                ValidateIssuer = true,
 
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
+                ValidateAudience = true,
 
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(
-                builder.Configuration["Jwt:Key"]!
-            )
-        )
-    };
-});
+                ValidateLifetime = true,
+
+                ValidateIssuerSigningKey = true,
 
 
-// =====================
-// Authorization (RBAC + Permissions)
-// =====================
+                ValidIssuer =
+                    builder.Configuration["Jwt:Issuer"],
 
-builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Users.Create", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.UsersCreate)));
+                ValidAudience =
+                    builder.Configuration["Jwt:Audience"],
 
-    options.AddPolicy("Users.Update", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.UsersUpdate)));
 
-    options.AddPolicy("Users.Delete", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.UsersDelete)));
+                IssuerSigningKey =
+                    new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(
+                            builder.Configuration["Jwt:Key"]!
+                        ))
+            };
+    });
 
-    options.AddPolicy("Organizations.Create", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.OrganizationsCreate)));
 
-    options.AddPolicy("Organizations.Update", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.OrganizationsUpdate)));
-
-    options.AddPolicy("Organizations.Delete", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.OrganizationsDelete)));
-
-    options.AddPolicy("Reports.View", policy =>
-        policy.Requirements.Add(
-            new PermissionRequirement(Permissions.ReportsView)));
-});
 
 
 // =====================
-// OpenAPI
+// Authorization RBAC
 // =====================
-builder.Services.AddOpenApi();
 
+builder.Services.AddSingleton<
+    IAuthorizationHandler,
+    PermissionHandler>();
+
+
+builder.Services.AddAuthorization();
+
+
+
+// =====================
+// Build
+// =====================
 
 var app = builder.Build();
 
 
+
 // =====================
-// Development
+// Swagger
 // =====================
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+
+    app.UseSwaggerUI();
 }
 
 
+
 // =====================
-// HTTP Pipeline
+// Middleware
 // =====================
+
 app.UseHttpsRedirection();
+
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+
 app.UseMiddleware<TenantResolutionMiddleware>();
 
+
 app.UseAuthentication();
 
+
 app.UseAuthorization();
+
+
+
+// =====================
+// Routes
+// =====================
+
+app.MapHealthChecks("/api/Health");
+
 
 app.MapControllers();
 
 
 app.Run();
-app.UseAuthentication();
-app.UseAuthorization();
 
-app.MapControllers();
 
-app.Run();
+// Required for WebApplicationFactory tests
+public partial class Program
+{
+}
