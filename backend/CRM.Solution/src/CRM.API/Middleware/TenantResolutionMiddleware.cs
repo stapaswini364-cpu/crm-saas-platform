@@ -1,4 +1,4 @@
-using CRM.Application.Interfaces;
+using CRM.Application.Common.Security;
 
 namespace CRM.API.Middleware;
 
@@ -7,8 +7,7 @@ public class TenantResolutionMiddleware
     private readonly RequestDelegate _next;
 
 
-    public TenantResolutionMiddleware(
-        RequestDelegate next)
+    public TenantResolutionMiddleware(RequestDelegate next)
     {
         _next = next;
     }
@@ -18,7 +17,7 @@ public class TenantResolutionMiddleware
         HttpContext context,
         ITenantContextAccessor tenantContextAccessor)
     {
-        Guid? tenantId = null;
+        string? tenantId = null;
 
 
         // Read Tenant Id from Header
@@ -26,38 +25,31 @@ public class TenantResolutionMiddleware
             "X-Tenant-Id",
             out var headerValue))
         {
-            if(Guid.TryParse(
-                headerValue.ToString(),
+            tenantId = headerValue.ToString();
+        }
+
+
+        // If Header not found, read from JWT Claim
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            tenantId = context.User
+                .FindFirst("tenant_id")
+                ?.Value;
+        }
+
+
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            context.Items["TenantId"] = tenantId;
+
+
+            if (Guid.TryParse(
+                tenantId,
                 out var parsedTenantId))
             {
-                tenantId = parsedTenantId;
+                tenantContextAccessor
+                    .SetTenantId(parsedTenantId);
             }
-        }
-
-
-        // Read Tenant Id from JWT Claim
-        if(tenantId == null)
-        {
-            var claimValue =
-                context.User
-                    .FindFirst("tenant_id")
-                    ?.Value;
-
-
-            if(Guid.TryParse(
-                claimValue,
-                out var claimTenantId))
-            {
-                tenantId = claimTenantId;
-            }
-        }
-
-
-        if(tenantId.HasValue)
-        {
-            context.Items["TenantId"] = tenantId.Value;
-
-            tenantContextAccessor.TenantId = tenantId.Value;
         }
 
 

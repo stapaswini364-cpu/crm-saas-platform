@@ -22,41 +22,21 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Unauthorized access attempt"
-            );
-
-
-            context.Response.Clear();
-
-            context.Response.StatusCode =
-                StatusCodes.Status401Unauthorized;
-
-            context.Response.ContentType =
-                "application/json";
-
-
-            await context.Response.WriteAsJsonAsync(new
-            {
-                message = "Unauthorized access"
-            });
-        }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Unhandled Exception: {Message}",
-                ex.Message
-            );
+                "Unhandled exception occurred");
 
 
-            context.Response.Clear();
+            Console.WriteLine("==============================");
+            Console.WriteLine(ex.ToString());
+            Console.WriteLine("==============================");
+
 
             context.Response.StatusCode =
                 StatusCodes.Status500InternalServerError;
+
 
             context.Response.ContentType =
                 "application/json";
@@ -64,8 +44,8 @@ public class GlobalExceptionMiddleware
 
             await context.Response.WriteAsJsonAsync(new
             {
-                message = "Internal server error",
-                error = ex.Message,
+                message = ex.Message,
+                stack = ex.StackTrace,
                 inner = ex.InnerException?.Message
             });
         }

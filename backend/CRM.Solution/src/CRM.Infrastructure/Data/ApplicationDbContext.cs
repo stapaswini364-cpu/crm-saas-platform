@@ -5,8 +5,7 @@ namespace CRM.Infrastructure.Data;
 
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(
-        DbContextOptions<ApplicationDbContext> options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
@@ -35,19 +34,15 @@ public class ApplicationDbContext : DbContext
 
 
 
-        // =========================
         // Role Configuration
-        // =========================
 
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasKey(x => x.Id);
 
-
             entity.Property(x => x.Name)
                 .IsRequired()
                 .HasMaxLength(100);
-
 
             entity.Property(x => x.Description)
                 .HasMaxLength(250);
@@ -61,19 +56,15 @@ public class ApplicationDbContext : DbContext
 
 
 
-        // =========================
         // Permission Configuration
-        // =========================
 
         modelBuilder.Entity<Permission>(entity =>
         {
             entity.HasKey(x => x.Id);
 
-
             entity.Property(x => x.Name)
                 .IsRequired()
                 .HasMaxLength(150);
-
 
             entity.Property(x => x.Description)
                 .HasMaxLength(250);
@@ -87,9 +78,7 @@ public class ApplicationDbContext : DbContext
 
 
 
-        // =========================
         // Role Permission Mapping
-        // =========================
 
         modelBuilder.Entity<RolePermission>(entity =>
         {
@@ -106,9 +95,7 @@ public class ApplicationDbContext : DbContext
 
 
 
-        // =========================
         // Refresh Token Configuration
-        // =========================
 
         modelBuilder.Entity<RefreshToken>(entity =>
         {
@@ -124,7 +111,7 @@ public class ApplicationDbContext : DbContext
 
 
             entity.HasOne(x => x.User)
-                .WithMany(x => x.RefreshTokens)
+                .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

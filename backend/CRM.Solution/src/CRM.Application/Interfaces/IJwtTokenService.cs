@@ -5,6 +5,7 @@ public interface IJwtTokenService
     string GenerateToken(
         Guid userId,
         string email,
-        string role
-    );
+        string role);
+
+    string GenerateRefreshToken();
 }

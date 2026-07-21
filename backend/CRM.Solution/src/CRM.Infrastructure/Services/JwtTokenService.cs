@@ -1,5 +1,7 @@
 using CRM.Application.Interfaces;
 using CRM.Application.Common.Security;
+using CRM.Domain.Entities;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -7,16 +9,20 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
+
 namespace CRM.Infrastructure.Services;
 
 public class JwtTokenService : IJwtTokenService
 {
     private readonly IConfiguration _configuration;
 
-    public JwtTokenService(IConfiguration configuration)
+
+    public JwtTokenService(
+        IConfiguration configuration)
     {
         _configuration = configuration;
     }
+
 
 
     public string GenerateToken(
@@ -43,12 +49,11 @@ public class JwtTokenService : IJwtTokenService
         };
 
 
-        // Add Role Permissions into JWT Claims
         if (RolePermissions.Map.TryGetValue(
             role,
             out var permissions))
         {
-            foreach (var permission in permissions)
+            foreach(var permission in permissions)
             {
                 claims.Add(
                     new Claim(
@@ -67,26 +72,38 @@ public class JwtTokenService : IJwtTokenService
         );
 
 
-        var credentials = new SigningCredentials(
-            key,
-            SecurityAlgorithms.HmacSha256
-        );
+        var credentials =
+            new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
 
 
-        var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
+        var token =
+            new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
 
-            audience: _configuration["Jwt:Audience"],
+                audience: _configuration["Jwt:Audience"],
 
-            claims: claims,
+                claims: claims,
 
-            expires: DateTime.UtcNow.AddHours(1),
+                expires:
+                    DateTime.UtcNow.AddHours(1),
 
-            signingCredentials: credentials
-        );
+                signingCredentials:
+                    credentials
+            );
 
 
         return new JwtSecurityTokenHandler()
             .WriteToken(token);
+    }
+
+
+
+    public string GenerateRefreshToken()
+    {
+        return Guid.NewGuid()
+            .ToString();
     }
 }

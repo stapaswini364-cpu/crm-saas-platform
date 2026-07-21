@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.Hosting;
 using Xunit;
+
 namespace CRM.Tests;
 
 public class RBACMiddlewareTests 
@@ -15,12 +15,7 @@ public class RBACMiddlewareTests
     public RBACMiddlewareTests(
         WebApplicationFactory<Program> factory)
     {
-        _client = factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Development");
-            })
-            .CreateClient();
+        _client = factory.CreateClient();
     }
 
 
@@ -28,20 +23,16 @@ public class RBACMiddlewareTests
     [Fact]
     public async Task Unauthorized_User_Should_Not_Access_Users_API()
     {
-        var response =
-            await _client.GetAsync("/api/Users");
+        var response = await _client
+            .GetAsync("/api/Users");
 
 
-        var body =
-            await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync();
 
-
-        Console.WriteLine(
-            "STATUS: " + response.StatusCode);
-
-
-        Console.WriteLine(
-            "BODY: " + body);
+        Console.WriteLine("========== Unauthorized Test ==========");
+        Console.WriteLine("STATUS : " + response.StatusCode);
+        Console.WriteLine("BODY   : " + body);
+        Console.WriteLine("======================================");
 
 
 
@@ -49,6 +40,7 @@ public class RBACMiddlewareTests
             .Should()
             .Be(HttpStatusCode.Unauthorized);
     }
+
 
 
 
@@ -63,20 +55,19 @@ public class RBACMiddlewareTests
             );
 
 
+
         var response =
             await _client.GetAsync("/api/Users");
 
 
-        var body =
-            await response.Content.ReadAsStringAsync();
+
+        var body = await response.Content.ReadAsStringAsync();
 
 
-        Console.WriteLine(
-            "STATUS: " + response.StatusCode);
-
-
-        Console.WriteLine(
-            "BODY: " + body);
+        Console.WriteLine("========== Invalid JWT Test ==========");
+        Console.WriteLine("STATUS : " + response.StatusCode);
+        Console.WriteLine("BODY   : " + body);
+        Console.WriteLine("======================================");
 
 
 
@@ -88,6 +79,7 @@ public class RBACMiddlewareTests
 
 
 
+
     [Fact]
     public async Task Health_API_Should_Work_Without_Login()
     {
@@ -95,16 +87,15 @@ public class RBACMiddlewareTests
             await _client.GetAsync("/api/Health");
 
 
-        var body =
-            await response.Content.ReadAsStringAsync();
+
+        var body = await response.Content.ReadAsStringAsync();
 
 
-        Console.WriteLine(
-            "STATUS: " + response.StatusCode);
 
-
-        Console.WriteLine(
-            "BODY: " + body);
+        Console.WriteLine("========== Health Test ==========");
+        Console.WriteLine("STATUS : " + response.StatusCode);
+        Console.WriteLine("BODY   : " + body);
+        Console.WriteLine("================================");
 
 
 

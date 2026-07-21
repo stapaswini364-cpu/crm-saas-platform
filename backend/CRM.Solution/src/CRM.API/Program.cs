@@ -9,6 +9,7 @@ using CRM.Application.Common.Security;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.Security;
 using CRM.Infrastructure.Services;
+
 using Microsoft.EntityFrameworkCore;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -35,19 +36,19 @@ builder.Host.UseSerilog();
 
 
 // =====================
-// Controllers
+// Services
 // =====================
 
 builder.Services.AddControllers();
 
-
-// =====================
-// Swagger
-// =====================
-
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen();
+
+
+// Health Check
+
+builder.Services.AddHealthChecks();
 
 
 // =====================
@@ -57,7 +58,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"));
+        builder.Configuration
+        .GetConnectionString("DefaultConnection"));
 });
 
 
@@ -65,52 +67,65 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Dependency Injection
 // =====================
 
-builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<
+    IJwtTokenService,
+    JwtTokenService>();
 
-builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+
+builder.Services.AddScoped<
+    IPasswordHasher,
+    BCryptPasswordHasher>();
+
 
 builder.Services.AddScoped<RefreshTokenService>();
+
 
 builder.Services.AddScoped<
     ITenantContextAccessor,
     TenantContextAccessor>();
 
 
+
+
 // =====================
-// Authentication JWT
+// Authentication
 // =====================
 
 builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme =
-            JwtBearerDefaults.AuthenticationScheme;
+    .AddAuthentication(
+        JwtBearerDefaults.AuthenticationScheme)
 
-        options.DefaultChallengeScheme =
-            JwtBearerDefaults.AuthenticationScheme;
-    })
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters =
             new TokenValidationParameters
             {
                 ValidateIssuer = true,
+
                 ValidateAudience = true,
+
                 ValidateLifetime = true,
+
                 ValidateIssuerSigningKey = true,
+
 
                 ValidIssuer =
                     builder.Configuration["Jwt:Issuer"],
 
+
                 ValidAudience =
                     builder.Configuration["Jwt:Audience"],
+
 
                 IssuerSigningKey =
                     new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(
-                            builder.Configuration["Jwt:Key"]!))
+                            builder.Configuration["Jwt:Key"]!
+                        ))
             };
     });
+
+
 
 
 // =====================
@@ -122,63 +137,8 @@ builder.Services.AddSingleton<
     PermissionHandler>();
 
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(
-        "Users.Create",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.UsersCreate)));
+builder.Services.AddAuthorization();
 
-
-    options.AddPolicy(
-        "Users.Update",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.UsersUpdate)));
-
-
-    options.AddPolicy(
-        "Users.Delete",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.UsersDelete)));
-
-
-    options.AddPolicy(
-        "Organizations.Create",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.OrganizationsCreate)));
-
-
-    options.AddPolicy(
-        "Organizations.Update",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.OrganizationsUpdate)));
-
-
-    options.AddPolicy(
-        "Organizations.Delete",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.OrganizationsDelete)));
-
-
-    options.AddPolicy(
-        "Reports.View",
-        policy =>
-            policy.Requirements.Add(
-                new PermissionRequirement(
-                    Permissions.ReportsView)));
-});
 
 
 // =====================
@@ -188,8 +148,9 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 
 
+
 // =====================
-// Swagger Middleware
+// Swagger
 // =====================
 
 if (app.Environment.IsDevelopment())
@@ -200,8 +161,9 @@ if (app.Environment.IsDevelopment())
 }
 
 
+
 // =====================
-// Middleware Pipeline
+// Middleware
 // =====================
 
 app.UseHttpsRedirection();
@@ -219,7 +181,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 
+
+// =====================
+// Routes
+// =====================
+
+app.MapHealthChecks("/api/Health");
+
+
 app.MapControllers();
 
 
 app.Run();
+
+
+// Required for WebApplicationFactory tests
+public partial class Program
+{
+}

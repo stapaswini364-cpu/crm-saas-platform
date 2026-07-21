@@ -7,7 +7,9 @@ using CRM.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace CRM.API.Controllers;
+
 
 [ApiController]
 [Route("api/[controller]")]
@@ -17,6 +19,7 @@ public class AuthController : ControllerBase
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly RefreshTokenService _refreshTokenService;
+
 
     public AuthController(
         ApplicationDbContext context,
@@ -31,12 +34,17 @@ public class AuthController : ControllerBase
     }
 
 
+
+    // =========================
     // LOGIN
+    // =========================
+
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var user = await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == request.Email);
+            .FirstOrDefaultAsync(x =>
+                x.Email == request.Email);
 
 
         if (user == null)
@@ -48,9 +56,11 @@ public class AuthController : ControllerBase
         }
 
 
-        var passwordValid = _passwordHasher.Verify(
-            request.Password,
-            user.PasswordHash);
+        var passwordValid =
+            _passwordHasher.Verify(
+                request.Password,
+                user.PasswordHash);
+
 
 
         if (!passwordValid)
@@ -62,48 +72,71 @@ public class AuthController : ControllerBase
         }
 
 
-        var accessToken = _jwtTokenService.GenerateToken(
-            user.Id,
-            user.Email,
-            user.Role
-        );
+
+        var accessToken =
+            _jwtTokenService.GenerateToken(
+                user.Id,
+                user.Email,
+                user.Role
+            );
 
 
-        var refreshToken = _refreshTokenService.GenerateRefreshToken();
+
+        var refreshToken =
+            _refreshTokenService.GenerateRefreshToken();
+
 
 
         var refreshTokenEntity = new RefreshToken
         {
             Id = Guid.NewGuid(),
+
             UserId = user.Id,
+
             Token = refreshToken,
+
             CreatedAt = DateTime.UtcNow,
+
             ExpiresAt = DateTime.UtcNow.AddDays(7),
+
             IsRevoked = false
         };
 
 
+
         _context.RefreshTokens.Add(refreshTokenEntity);
 
+
         await _context.SaveChangesAsync();
+
 
 
         return Ok(new LoginResponse
         {
             Token = accessToken,
+
             RefreshToken = refreshToken
         });
     }
 
 
 
+
+
+    // =========================
     // REFRESH TOKEN ROTATION
+    // =========================
+
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(RefreshRequest request)
+    public async Task<IActionResult> Refresh(
+        RefreshRequest request)
     {
-        var oldToken = await _context.RefreshTokens
+
+        var oldToken =
+            await _context.RefreshTokens
             .Include(x => x.User)
-            .FirstOrDefaultAsync(x => x.Token == request.RefreshToken);
+            .FirstOrDefaultAsync(
+                x => x.Token == request.RefreshToken);
 
 
 
@@ -119,8 +152,11 @@ public class AuthController : ControllerBase
 
 
 
+
         oldToken.IsRevoked = true;
+
         oldToken.RevokedAt = DateTime.UtcNow;
+
 
 
 
@@ -129,22 +165,30 @@ public class AuthController : ControllerBase
 
 
 
-        oldToken.ReplacedByToken = newRefreshToken;
+        oldToken.ReplacedByToken =
+            newRefreshToken;
 
 
 
         var newTokenEntity = new RefreshToken
         {
             Id = Guid.NewGuid(),
+
             UserId = oldToken.UserId,
+
             Token = newRefreshToken,
+
             CreatedAt = DateTime.UtcNow,
+
             ExpiresAt = DateTime.UtcNow.AddDays(7),
+
             IsRevoked = false
         };
 
 
+
         _context.RefreshTokens.Add(newTokenEntity);
+
 
 
 
@@ -156,24 +200,38 @@ public class AuthController : ControllerBase
             );
 
 
+
         await _context.SaveChangesAsync();
+
+
 
 
         return Ok(new RefreshTokenResponse
         {
             Token = newAccessToken,
+
             RefreshToken = newRefreshToken
         });
     }
 
 
 
+
+
+
+    // =========================
     // LOGOUT
+    // =========================
+
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(RefreshRequest request)
+    public async Task<IActionResult> Logout(
+        RefreshRequest request)
     {
-        var refreshToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(x => x.Token == request.RefreshToken);
+
+        var refreshToken =
+            await _context.RefreshTokens
+            .FirstOrDefaultAsync(
+                x => x.Token == request.RefreshToken);
 
 
 
@@ -188,6 +246,7 @@ public class AuthController : ControllerBase
 
 
         refreshToken.IsRevoked = true;
+
         refreshToken.RevokedAt = DateTime.UtcNow;
 
 

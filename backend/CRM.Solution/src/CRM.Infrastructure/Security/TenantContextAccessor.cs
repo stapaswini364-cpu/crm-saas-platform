@@ -1,8 +1,16 @@
-using CRM.Application.Interfaces;
+using CRM.Application.Common.Security;
 
 namespace CRM.Infrastructure.Security;
 
 public class TenantContextAccessor : ITenantContextAccessor
 {
-    public Guid? TenantId { get; set; }
+    private Guid? _tenantId;
+
+    public Guid? TenantId => _tenantId;
+
+
+    public void SetTenantId(Guid tenantId)
+    {
+        _tenantId = tenantId;
+    }
 }
