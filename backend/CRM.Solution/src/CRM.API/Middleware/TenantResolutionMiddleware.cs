@@ -1,4 +1,4 @@
-using CRM.API.Services;
+using CRM.Application.Interfaces;
 
 namespace CRM.API.Middleware;
 
@@ -6,34 +6,60 @@ public class TenantResolutionMiddleware
 {
     private readonly RequestDelegate _next;
 
-    public TenantResolutionMiddleware(RequestDelegate next)
+
+    public TenantResolutionMiddleware(
+        RequestDelegate next)
     {
         _next = next;
     }
+
 
     public async Task InvokeAsync(
         HttpContext context,
         ITenantContextAccessor tenantContextAccessor)
     {
-        string? tenantId = null;
+        Guid? tenantId = null;
+
 
         // Read Tenant Id from Header
-        if (context.Request.Headers.TryGetValue("X-Tenant-Id", out var headerValue))
+        if (context.Request.Headers.TryGetValue(
+            "X-Tenant-Id",
+            out var headerValue))
         {
-            tenantId = headerValue.ToString();
+            if(Guid.TryParse(
+                headerValue.ToString(),
+                out var parsedTenantId))
+            {
+                tenantId = parsedTenantId;
+            }
         }
 
-        // If Header not found, read from JWT Claim
-        if (string.IsNullOrWhiteSpace(tenantId))
+
+        // Read Tenant Id from JWT Claim
+        if(tenantId == null)
         {
-            tenantId = context.User.FindFirst("tenant_id")?.Value;
+            var claimValue =
+                context.User
+                    .FindFirst("tenant_id")
+                    ?.Value;
+
+
+            if(Guid.TryParse(
+                claimValue,
+                out var claimTenantId))
+            {
+                tenantId = claimTenantId;
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(tenantId))
+
+        if(tenantId.HasValue)
         {
-            context.Items["TenantId"] = tenantId;
-            tenantContextAccessor.TenantId = tenantId;
+            context.Items["TenantId"] = tenantId.Value;
+
+            tenantContextAccessor.TenantId = tenantId.Value;
         }
+
 
         await _next(context);
     }

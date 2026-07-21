@@ -1,9 +1,9 @@
 using CRM.Application.DTOs;
 using CRM.Application.Interfaces;
-using CRM.Application.Services;
 using CRM.Domain.Entities;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.Services;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,7 +62,11 @@ public class AuthController : ControllerBase
         }
 
 
-        var accessToken = _jwtTokenService.GenerateToken(user);
+        var accessToken = _jwtTokenService.GenerateToken(
+            user.Id,
+            user.Email,
+            user.Role
+        );
 
 
         var refreshToken = _refreshTokenService.GenerateRefreshToken();
@@ -115,13 +119,11 @@ public class AuthController : ControllerBase
 
 
 
-        // revoke old token
         oldToken.IsRevoked = true;
         oldToken.RevokedAt = DateTime.UtcNow;
 
 
 
-        // generate new refresh token
         var newRefreshToken =
             _refreshTokenService.GenerateRefreshToken();
 
@@ -142,18 +144,19 @@ public class AuthController : ControllerBase
         };
 
 
-
         _context.RefreshTokens.Add(newTokenEntity);
 
 
 
         var newAccessToken =
-            _jwtTokenService.GenerateToken(oldToken.User);
-
+            _jwtTokenService.GenerateToken(
+                oldToken.User.Id,
+                oldToken.User.Email,
+                oldToken.User.Role
+            );
 
 
         await _context.SaveChangesAsync();
-
 
 
         return Ok(new RefreshTokenResponse
