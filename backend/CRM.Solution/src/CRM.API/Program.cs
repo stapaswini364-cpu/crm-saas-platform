@@ -9,6 +9,7 @@ using CRM.Application.Common.Security;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.Security;
 using CRM.Infrastructure.Services;
+using HealthChecks.Redis;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 
 using Microsoft.IdentityModel.Tokens;
+
+using RabbitMQ.Client;
 
 using System.Text;
 
@@ -36,19 +39,19 @@ builder.Host.UseSerilog();
 
 
 // =====================
-// Services
+// Controllers
 // =====================
 
 builder.Services.AddControllers();
 
+
+// =====================
+// Swagger
+// =====================
+
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen();
-
-
-// Health Check
-
-builder.Services.AddHealthChecks();
 
 
 // =====================
@@ -58,43 +61,99 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(
-        builder.Configuration
-        .GetConnectionString("DefaultConnection"));
+        builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
+
+// =====================
+// Redis Cache
+// =====================
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = "localhost:6379";
+    options.InstanceName = "CRM:";
+});
+
+
+// =====================
+// Health Checks
+// =====================
+
+builder.Services
+    .AddHealthChecks()
+
+    // PostgreSQL
+    .AddDbContextCheck<ApplicationDbContext>()
+
+    // Redis
+    .AddRedis(
+        "localhost:6379",
+        name: "redis")
+
+    // RabbitMQ
+    .AddRabbitMQ(
+        sp =>
+        {
+            var factory = new ConnectionFactory
+            {
+                Uri = new Uri(
+                    "amqp://admin:admin123@localhost:5672/")
+            };
+
+            return factory.CreateConnectionAsync()
+                .GetAwaiter()
+                .GetResult();
+        },
+        name: "rabbitmq");
 
 
 // =====================
 // Dependency Injection
 // =====================
 
-builder.Services.AddScoped<
-    IJwtTokenService,
-    JwtTokenService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-
-builder.Services.AddScoped<
-    IPasswordHasher,
-    BCryptPasswordHasher>();
-
+builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 
 builder.Services.AddScoped<RefreshTokenService>();
-
 
 builder.Services.AddScoped<
     ITenantContextAccessor,
     TenantContextAccessor>();
 
 
+// =====================
+// Dashboard Service
+// =====================
+
+builder.Services.AddScoped<
+    IDashboardService,
+    DashboardService>();
 
 
 // =====================
-// Authentication
+// Redis Cache Service
+// =====================
+
+builder.Services.AddScoped<
+    IRedisCacheService,
+    RedisCacheService>();
+
+
+// =====================
+// Authentication JWT
 // =====================
 
 builder.Services
-    .AddAuthentication(
-        JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme =
+            JwtBearerDefaults.AuthenticationScheme;
 
+        options.DefaultChallengeScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters =
@@ -120,12 +179,9 @@ builder.Services
                 IssuerSigningKey =
                     new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(
-                            builder.Configuration["Jwt:Key"]!
-                        ))
+                            builder.Configuration["Jwt:Key"]!))
             };
     });
-
-
 
 
 // =====================
@@ -137,8 +193,63 @@ builder.Services.AddSingleton<
     PermissionHandler>();
 
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        "Users.Create",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.UsersCreate)));
 
+
+    options.AddPolicy(
+        "Users.Update",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.UsersUpdate)));
+
+
+    options.AddPolicy(
+        "Users.Delete",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.UsersDelete)));
+
+
+    options.AddPolicy(
+        "Organizations.Create",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.OrganizationsCreate)));
+
+
+    options.AddPolicy(
+        "Organizations.Update",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.OrganizationsUpdate)));
+
+
+    options.AddPolicy(
+        "Organizations.Delete",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.OrganizationsDelete)));
+
+
+    options.AddPolicy(
+        "Reports.View",
+        policy =>
+            policy.Requirements.Add(
+                new PermissionRequirement(
+                    Permissions.ReportsView)));
+});
 
 
 // =====================
@@ -148,9 +259,15 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 
+// =====================
+// Serilog Request Logging
+// =====================
+
+app.UseSerilogRequestLogging();
+
 
 // =====================
-// Swagger
+// Swagger Middleware
 // =====================
 
 if (app.Environment.IsDevelopment())
@@ -161,41 +278,28 @@ if (app.Environment.IsDevelopment())
 }
 
 
-
 // =====================
-// Middleware
+// Middleware Pipeline
 // =====================
 
 app.UseHttpsRedirection();
 
-
 app.UseMiddleware<GlobalExceptionMiddleware>();
-
 
 app.UseMiddleware<TenantResolutionMiddleware>();
 
-
 app.UseAuthentication();
-
 
 app.UseAuthorization();
 
 
-
 // =====================
-// Routes
+// Endpoints
 // =====================
-
-app.MapHealthChecks("/api/Health");
-
 
 app.MapControllers();
 
+app.MapHealthChecks("/health");
+
 
 app.Run();
-
-
-// Required for WebApplicationFactory tests
-public partial class Program
-{
-}

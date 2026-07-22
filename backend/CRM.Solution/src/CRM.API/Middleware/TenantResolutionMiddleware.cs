@@ -1,4 +1,4 @@
-using CRM.Application.Common.Security;
+using CRM.Application.Interfaces;
 
 namespace CRM.API.Middleware;
 
@@ -7,7 +7,8 @@ public class TenantResolutionMiddleware
     private readonly RequestDelegate _next;
 
 
-    public TenantResolutionMiddleware(RequestDelegate next)
+    public TenantResolutionMiddleware(
+        RequestDelegate next)
     {
         _next = next;
     }
