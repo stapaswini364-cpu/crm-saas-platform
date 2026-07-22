@@ -5,7 +5,8 @@ namespace CRM.Infrastructure.Data;
 
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
@@ -14,6 +15,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<Organization> Organizations => Set<Organization>();
 
     public DbSet<User> Users => Set<User>();
+
+    public DbSet<TaskItem> Tasks => Set<TaskItem>();
+
+    public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
