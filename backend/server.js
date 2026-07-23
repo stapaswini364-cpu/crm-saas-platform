@@ -5,12 +5,10 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 
-
 const dashboardRoutes = require("./src/dashboard/dashboard.routes");
-
+const enquiryRoutes = require("./src/enquiry/enquiry.routes");
 
 const app = express();
-
 
 // Middleware
 app.use(cors());
@@ -18,11 +16,9 @@ app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json());
 
-
 // Routes
-
 app.use("/api/dashboard", dashboardRoutes);
-
+app.use("/api/enquiries", enquiryRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -31,11 +27,8 @@ app.get("/", (req, res) => {
     });
 });
 
-
 // Server
-
 const PORT = process.env.PORT || 3000;
-
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

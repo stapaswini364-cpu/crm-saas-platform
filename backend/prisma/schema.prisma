@@ -7,12 +7,15 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model Enquiry {
   id        String   @id @default(uuid())
 
   name      String
   email     String?
+  phone     String?
+
+  owner     String?
+  service   String?
 
   source    String
   status    String   @default("NEW")
@@ -21,4 +24,10 @@ model Enquiry {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([owner])
+  @@index([source])
+  @@index([service])
+  @@index([status])
+  @@index([createdAt])
 }
