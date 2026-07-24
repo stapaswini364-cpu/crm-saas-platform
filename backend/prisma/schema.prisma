@@ -25,9 +25,26 @@ model Enquiry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  audits    EnquiryAudit[]
+
   @@index([owner])
   @@index([source])
   @@index([service])
   @@index([status])
   @@index([createdAt])
+}
+
+model EnquiryAudit {
+  id         String   @id @default(uuid())
+
+  enquiryId  String
+  oldStatus  String
+  newStatus  String
+
+  changedAt  DateTime @default(now())
+
+  enquiry    Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId])
+  @@index([changedAt])
 }

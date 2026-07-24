@@ -1,7 +1,23 @@
 const prisma = require("../prisma/client");
 
 async function createEnquiry(data) {
-  return await prisma.enquiry.create({
+  // Duplicate email/phone check
+  const duplicate = await prisma.enquiry.findFirst({
+    where: {
+      OR: [
+        ...(data.email ? [{ email: data.email }] : []),
+        ...(data.phone ? [{ phone: data.phone }] : []),
+      ],
+    },
+  });
+
+  if (duplicate) {
+    const error = new Error("Enquiry with this email or phone already exists.");
+    error.status = 409;
+    throw error;
+  }
+
+  return prisma.enquiry.create({
     data: {
       name: data.name,
       email: data.email || null,
@@ -35,7 +51,7 @@ async function listEnquiries(filters) {
     }
   }
 
-  return await prisma.enquiry.findMany({
+  return prisma.enquiry.findMany({
     where,
     orderBy: {
       createdAt: "desc",
@@ -43,7 +59,37 @@ async function listEnquiries(filters) {
   });
 }
 
+async function changeStage(id, status) {
+  const enquiry = await prisma.enquiry.findUnique({
+    where: { id },
+  });
+
+  if (!enquiry) {
+    const error = new Error("Enquiry not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const updated = await prisma.enquiry.update({
+    where: { id },
+    data: {
+      status,
+    },
+  });
+
+  await prisma.enquiryAudit.create({
+    data: {
+      enquiryId: id,
+      oldStatus: enquiry.status,
+      newStatus: status,
+    },
+  });
+
+  return updated;
+}
+
 module.exports = {
   createEnquiry,
   listEnquiries,
+  changeStage,
 };
